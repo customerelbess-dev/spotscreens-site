@@ -18,31 +18,72 @@
 
   document.querySelectorAll('.slot video').forEach(function (video) {
     var label = video.parentElement.querySelector('.slot__file');
+    var starting = false;
+
     function hideBroken() { video.style.display = 'none'; if (label) label.hidden = false; }
     function hideLabel() { if (label) label.hidden = true; }
     video.addEventListener('error', hideBroken);
-    video.addEventListener('loadeddata', hideLabel);
+    video.addEventListener('playing', hideLabel);
 
-    video.controls = false;
-    video.muted = true;
-    video.defaultMuted = true;
-    video.loop = true;
-    video.playsInline = true;
-    video.setAttribute('playsinline', '');
-    video.setAttribute('webkit-playsinline', '');
-    video.disablePictureInPicture = true;
+    function arm() {
+      video.removeAttribute('controls');
+      video.controls = false;
+      video.muted = true;
+      video.defaultMuted = true;
+      video.volume = 0;
+      video.loop = true;
+      video.autoplay = true;
+      video.playsInline = true;
+      video.setAttribute('muted', '');
+      video.setAttribute('autoplay', '');
+      video.setAttribute('loop', '');
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
+      if ('disablePictureInPicture' in video) video.disablePictureInPicture = true;
+      if ('disableRemotePlayback' in video) video.disableRemotePlayback = true;
+    }
 
     function playLoop() {
+      arm();
+      if (starting || !video.paused) return;
+      starting = true;
       var play = video.play();
-      if (play && play.catch) play.catch(function () {});
+      if (play && play.then) {
+        play.then(function () { starting = false; hideLabel(); }).catch(function () { starting = false; });
+      } else {
+        starting = false;
+      }
     }
+
     video.addEventListener('pause', function () {
-      if (!video.ended) playLoop();
+      if (document.hidden) return;
+      setTimeout(playLoop, 60);
     });
-    video.addEventListener('ended', playLoop);
+    video.addEventListener('ended', function () {
+      try { video.currentTime = 0; } catch (e) {}
+      playLoop();
+    });
+    video.addEventListener('loadeddata', playLoop);
+    video.addEventListener('canplay', playLoop);
+
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) playLoop();
     });
+    window.addEventListener('pageshow', playLoop);
+    window.addEventListener('focus', playLoop);
+    ['touchstart', 'touchend', 'pointerdown', 'click', 'scroll'].forEach(function (ev) {
+      document.addEventListener(ev, playLoop, { passive: true });
+    });
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) playLoop();
+        });
+      }, { threshold: 0.1 }).observe(video);
+    }
+
+    arm();
     playLoop();
   });
 
@@ -102,16 +143,6 @@
   var dragging = false;
   var timer;
 
-  if (dotsWrap) {
-    slides.forEach(function (_, n) {
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.setAttribute('aria-label', 'Image ' + (n + 1));
-      b.addEventListener('click', function () { go(n); });
-      dotsWrap.appendChild(b);
-    });
-  }
-
   function go(n) {
     i = (n + slides.length) % slides.length;
     track.style.transform = 'translateX(' + (-i * 100) + '%)';
@@ -126,11 +157,23 @@
   function start() {
     stop();
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    timer = setInterval(function () { go(i + 1); }, 6500);
+    timer = setInterval(function () { go(i + 1); }, 4000);
   }
 
-  if (prev) prev.addEventListener('click', function () { go(i - 1); });
-  if (next) next.addEventListener('click', function () { go(i + 1); });
+  function userGo(n) { go(n); start(); }
+
+  if (dotsWrap) {
+    slides.forEach(function (_, n) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-label', 'Image ' + (n + 1));
+      b.addEventListener('click', function () { userGo(n); });
+      dotsWrap.appendChild(b);
+    });
+  }
+
+  if (prev) prev.addEventListener('click', function () { userGo(i - 1); });
+  if (next) next.addEventListener('click', function () { userGo(i + 1); });
 
   root.addEventListener('mouseenter', stop);
   root.addEventListener('mouseleave', start);
@@ -147,13 +190,13 @@
   root.addEventListener('touchend', function () {
     if (!dragging) return;
     dragging = false;
-    if (dx > 50) go(i - 1);
-    else if (dx < -50) go(i + 1);
+    if (dx > 50) userGo(i - 1);
+    else if (dx < -50) userGo(i + 1);
   });
 
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'ArrowLeft') go(i - 1);
-    if (e.key === 'ArrowRight') go(i + 1);
+    if (e.key === 'ArrowLeft') userGo(i - 1);
+    if (e.key === 'ArrowRight') userGo(i + 1);
   });
 
   go(0);
