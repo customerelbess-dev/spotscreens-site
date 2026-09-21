@@ -378,19 +378,20 @@ body.is-menu-open .menu-btn span:last-child{transform:rotate(-45deg)}
 .hero--form .hero__media{
   position:relative;
   inset:auto;
-  width:min(100%, 1120px);
-  aspect-ratio:auto;
+  width:100%;
+  aspect-ratio:2.15 / 1;
 }
 .hero--form .slot{
-  height:auto;
+  height:100%;
   min-height:0;
 }
 .hero--form .slot img{
-  position:static;
+  position:absolute;
+  inset:0;
   width:100%;
-  height:auto;
-  object-fit:contain;
-  object-position:center;
+  height:100%;
+  object-fit:cover;
+  object-position:center 42%;
 }
 .hero--form .slot::after{
   background:
