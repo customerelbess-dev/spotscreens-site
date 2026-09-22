@@ -325,10 +325,9 @@ body.is-menu-open .menu-btn span:last-child{transform:rotate(-45deg)}
   z-index:40;
   background:var(--blue);
   color:#fff;
-  font-size:11px;
+  font-size:13px;
   font-weight:700;
-  letter-spacing:.04em;
-  text-transform:uppercase;
+  letter-spacing:.01em;
   padding:12px 16px;
   border-radius:4px;
   box-shadow:0 8px 24px rgba(0,0,0,.18);
@@ -746,8 +745,8 @@ body.is-menu-open .menu-btn span:last-child{transform:rotate(-45deg)}
   border-radius:2px;
   background:#fff;
 }
-.touch__form .btn{border-radius:2px;padding:12px 22px;background:#111}
-.touch__form .btn:hover{background:#000}
+.touch__form .btn{border-radius:2px;padding:12px 22px;background:var(--blue)}
+.touch__form .btn:hover{background:var(--blue-dark)}
 .touch__note{font-size:13px;color:var(--muted);margin:0}
 
 /* About story */
