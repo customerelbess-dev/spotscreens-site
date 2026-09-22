@@ -535,7 +535,7 @@ body.is-menu-open .menu-btn span:last-child{transform:rotate(-45deg)}
 .process h2{
   font-size:clamp(28px,3.6vw,42px);
   margin-bottom:36px;
-  max-width:16ch;
+  max-width:20ch;
 }
 .process__grid{
   display:grid;
