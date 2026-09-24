@@ -16,13 +16,18 @@
     }
   });
 
-  document.querySelectorAll('.slot video').forEach(function (video) {
-    var label = video.parentElement.querySelector('.slot__file');
+  var loops = [];
+
+  document.querySelectorAll('video').forEach(function (video) {
+    var parent = video.parentElement;
+    var label = parent ? parent.querySelector('.slot__file') : null;
     var starting = false;
+    var lastTime = -1;
+    var stalls = 0;
+    var reloads = 0;
 
     function hideBroken() { video.style.display = 'none'; if (label) label.hidden = false; }
     function hideLabel() { if (label) label.hidden = true; }
-    video.addEventListener('error', hideBroken);
     video.addEventListener('playing', hideLabel);
 
     function arm() {
@@ -45,7 +50,7 @@
 
     function playLoop() {
       arm();
-      if (starting || !video.paused) return;
+      if (starting || (!video.paused && !video.ended)) return;
       starting = true;
       var play = video.play();
       if (play && play.then) {
@@ -55,6 +60,40 @@
       }
     }
 
+    // A stalled stream fires no further events, so re-fetch it and resume where it stopped.
+    function reload() {
+      stalls = 0;
+      if (reloads > 6) return;
+      reloads++;
+      var at = video.currentTime;
+      video.addEventListener('loadeddata', function once() {
+        video.removeEventListener('loadeddata', once);
+        try { video.currentTime = at; } catch (e) {}
+        playLoop();
+      });
+      try { video.load(); } catch (e) {}
+    }
+
+    // Called once a second: recovers from silent pauses, stalls and rejected play() calls.
+    function tick() {
+      if (document.hidden) return;
+      if (video.readyState === 0 && video.networkState === 3) { hideBroken(); return; }
+      if (video.paused || video.ended) { playLoop(); return; }
+      if (video.currentTime === lastTime && video.readyState >= 3) {
+        if (++stalls >= 4) reload();
+        return;
+      }
+      if (video.currentTime !== lastTime) {
+        stalls = 0;
+        reloads = 0;
+        lastTime = video.currentTime;
+      }
+    }
+
+    video.addEventListener('error', function () {
+      if (reloads > 6) hideBroken();
+      else reload();
+    });
     video.addEventListener('pause', function () {
       if (document.hidden) return;
       setTimeout(playLoop, 60);
@@ -63,16 +102,8 @@
       try { video.currentTime = 0; } catch (e) {}
       playLoop();
     });
-    video.addEventListener('loadeddata', playLoop);
-    video.addEventListener('canplay', playLoop);
-
-    document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) playLoop();
-    });
-    window.addEventListener('pageshow', playLoop);
-    window.addEventListener('focus', playLoop);
-    ['touchstart', 'touchend', 'pointerdown', 'click', 'scroll'].forEach(function (ev) {
-      document.addEventListener(ev, playLoop, { passive: true });
+    ['loadeddata', 'canplay', 'stalled', 'suspend', 'waiting'].forEach(function (ev) {
+      video.addEventListener(ev, playLoop);
     });
 
     if ('IntersectionObserver' in window) {
@@ -80,12 +111,30 @@
         entries.forEach(function (entry) {
           if (entry.isIntersecting) playLoop();
         });
-      }, { threshold: 0.1 }).observe(video);
+      }, { threshold: 0.01 }).observe(video);
     }
 
+    loops.push({ play: playLoop, tick: tick });
     arm();
     playLoop();
   });
+
+  if (loops.length) {
+    var playAll = function () { loops.forEach(function (l) { l.play(); }); };
+
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) playAll();
+    });
+    ['pageshow', 'focus', 'online', 'orientationchange', 'resize'].forEach(function (ev) {
+      window.addEventListener(ev, playAll);
+    });
+    // iOS Low Power Mode refuses autoplay until the visitor interacts with the page.
+    ['touchstart', 'touchend', 'touchmove', 'pointerdown', 'click', 'keydown', 'scroll'].forEach(function (ev) {
+      document.addEventListener(ev, playAll, { passive: true });
+    });
+
+    setInterval(function () { loops.forEach(function (l) { l.tick(); }); }, 1000);
+  }
 
   var menuBtn = document.querySelector('[data-menu-btn]');
   var nav = document.querySelector('[data-nav]');

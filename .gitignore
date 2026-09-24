@@ -1,0 +1,8 @@
+.DS_Store
+
+# Internal notes and throwaway scripts — never publish these.
+SPOTSCREENS-SPEC.md
+_*.py
+
+# Stray camera upload left in the public folder.
+public/public:*/
